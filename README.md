@@ -45,7 +45,7 @@ https://newtonproject.geoscienze.unipd.it/ecoman/
 
 [Brandon VanderBeek](mailto:brandon.p.vanderbeek@gmail.com)
 
-[Neil Ribe] (mailto:neil.ribe@universite-paris-saclay.fr)
+[Neil Ribe](mailto:neil.ribe@universite-paris-saclay.fr)
 
 Albert de Montserrat
 
