@@ -32,13 +32,12 @@ Release of [`ECOMAN2.0-geodynamics`](https://github.com/mfaccenda/ECOMAN2.0-geod
 
 --------------------------------------------------------------------------------------------
 
-Release of [`ECOMAN3.0-geodynamics`](https://github.com/mfaccenda/ECOMAN3.0-geodynamics.git)
+Release of [`ECOMAN3.0-geodynamics.Beta`](https://github.com/mfaccenda/ECOMAN3.0-geodynamics.Beta.git)
  
 ### Major changes relative to ECOMAN2.0
 
 - `D_REX_M`:
    - possibility to utilize several lookup tables at once by defining the path and ID in initgrid.f90
    - particle position traced backward, which allows to follow the exact same path during the forward run 
-   - ODFTEX 
-   - compiler gfortran, mpifort
+   - upper mantle fabrics with ODFTEX (Ribe et al., 2025, submitted)
 
