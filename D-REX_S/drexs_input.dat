@@ -109,7 +109,7 @@ ss_rlam3_rmax5_
  
 # E) SET OPERATING MODES FOR THE OUTPUT
  
-     1 # sbfmod ( 0 = compute LPO with D-REX; 1 = compute LPO for upper mantel only with SBFTEX)
+     1 # texmod ( 0 = compute LPO with D-REX; 1 = compute LPO for upper mantel only with SBFTEX)
      0 # ptmod : 0 = room P-T; 1 = scale single crystal elastic tensor by P-T conditions defined below
      3 # eosmod (1 = Dunite; 2 = Hartzburgite; 3 = Pyrolite; 4 = Basalt ; 5 = Pyroxenite)
   8.00 # pressure (GPa)

@@ -23,5 +23,3 @@ if [ ! -s objects/ ];then \
 fi;
 	 
 mv *.o objects/
-        #../D-REX_M/sbftex_alt.f90       \
-        #loadsave.f90 	\

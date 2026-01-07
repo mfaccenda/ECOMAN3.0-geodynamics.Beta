@@ -169,7 +169,7 @@
       nx(3)=3
       CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs(:,:,:,1),'acs',1)
       CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,odf(1,:),'odf',1)
-      IF(rocktype(1) == 1) THEN
+      IF(rocktype(1) == 1 .AND. Xol(1) < 1.d0) THEN
          CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_ens(:,:,:,1),'acs_ens',1)
          CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,odf_ens(1,:),'odf_ens',1)
       END IF
@@ -184,8 +184,10 @@
       CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_ol(:,:,:),'acs',1)
       CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_ol(:),'odf',1)
 
-      CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_opx(:,:,:),'acs_ens',1)
-      CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_opx(:),'odf_ens',1)
+      IF(rocktype(1) == 1 .AND. Xol(1) < 1.0) THEN
+         CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_opx(:,:,:),'acs_ens',1)
+         CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_opx(:),'odf_ens',1)
+      END IF
 
 
 
@@ -450,8 +452,10 @@
       nx(3)=3
       CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs(:,:,:,1),'acs',1)
       CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,odf(1,:),'odf',1)
-      CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_ens(:,:,:,1),'acs_ens',1)
-      CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,odf_ens(1,:),'odf_ens',1)
+      IF(rocktype(1) == 1 .AND. Xol(1) < 1.d0) THEN
+         CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_ens(:,:,:,1),'acs_ens',1)
+         CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,odf_ens(1,:),'odf_ens',1)
+      END IF
    
    ELSE
    
@@ -460,8 +464,10 @@
       nx(3)=3
       CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_ol(:,:,:),'acs',1)
       CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_ol(:),'odf',1)
-      CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_opx(:,:,:),'acs_ens',1)
-      CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_opx(:),'odf_ens',1)
+      IF(rocktype(1) == 1 .AND. Xol(1) < 1.d0) THEN
+         CALL loadsave_double(0,3,file_id,nx(1:3),H5T_NATIVE_DOUBLE,acs_opx(:,:,:),'acs_ens',1)
+         CALL loadsave_double(0,1,file_id,nx(1:1),H5T_NATIVE_DOUBLE,f1_opx(:),'odf_ens',1)
+      END IF
 
 
 
@@ -727,7 +733,7 @@
    rho(1) = 3353d0
   
    ALLOCATE(mdb(1))
-   mdb(m) = 1
+   mdb(1) = 1
 
    IF(ptmod > 0) THEN
 

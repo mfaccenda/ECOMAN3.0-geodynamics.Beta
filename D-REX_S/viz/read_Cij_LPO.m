@@ -11,31 +11,31 @@ global cs ss odf
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Path to D-REX_S output files directory
-input_dir = 'Atype_/';
+input_dir = '../ss_rlam3_rmax5_/new/';
 %Output directory, where images and videos are saved
 output_dir = input_dir;
 %First part of the D-REX_S output file name (usually same as output_dir)
-fname0 = 'Atype_';
+fname0 = 'ss_rlam3_rmax5_';
 
 %Min/Step/Max strain as filenumber of D-REX_S output files
-min_strain = 0.1;
+min_strain = 1.4;
 stp_strain = 0.1;
-max_strain = 1.0;
+max_strain = 1.4;
 
 %Choose what to plot/save (No = false; Yes = true)
 plot_Cij_LPO = true; %Activate plotting tensors and LPO. Set to false if want to make only movies of images saved in a previous run
 
-plot_Voigt = true; %Plot Vp, dVs due to aggregate LPO, Voigt average
-plot_Reuss = true; %Plot Vp, dVs due to aggregate LPO, Reuss average
-plot_Mixed = true; %Plot Vp, dVs due to aggregate LPO, mixed Voigt/Reuss average
+plot_Voigt = false; %Plot Vp, dVs due to aggregate LPO, Voigt average
+plot_Reuss = false; %Plot Vp, dVs due to aggregate LPO, Reuss average
+plot_Mixed = false; %Plot Vp, dVs due to aggregate LPO, mixed Voigt/Reuss average
 plot_Phase1LPO = true; %Plot LPO pole figures of main anisotropic phase
 plot_Phase2LPO = true; %Plot LPO pole figures of enstatite (only for upper mantel aggr.)
 
-makevideo = true; %Make .mp4 movie of the  LPO evolution
+makevideo = false; %Make .mp4 movie of the  LPO evolution
 
-plot_azirad = true; % Plot azimuthal, radial anisotropy as a function of strain
+plot_azirad = false; % Plot azimuthal, radial anisotropy as a function of strain
 
-plot_dec = true; % Plot components of elastic tensor as a function of strain
+plot_dec = false; % Plot components of elastic tensor as a function of strain
 
 plot_SPO   = false; %Plot Vp, dVs when an SPO model is superimposed on the LPO (i.e., spomod > 0)
 
@@ -48,9 +48,9 @@ printmod = true; %Save the MatLab figures
 strain=min_strain:stp_strain:max_strain;
 strainnum = int16((max_strain-min_strain)/stp_strain+1);
 
-if ~exist(output_dir,'dir')
-    system(['mkdir ',output_dir]);
-end
+% if ~exist(output_dir,'dir')
+%     system(['mkdir ',output_dir]);
+% end
 %system(['cd ',curdir]);
 if plot_Phase1LPO
     MI = zeros(strainnum,1); JI = MI;
@@ -138,7 +138,7 @@ for stp_strain = 1:strainnum
             ss = specimenSymmetry('mmm');%'mmm',[4.7646,10.2296,5.9942],'x||a','z||c','mineral','Olivine');
 
             acs = h5read(filename,'/acs');
-            odfdrex = h5read(filename,'/odf');
+            odftex = h5read(filename,'/odf');
 
             acs=permute(acs,[3,2,1]);
             numgrains=size(acs,3);
@@ -147,7 +147,7 @@ for stp_strain = 1:strainnum
             ori   = orientation('matrix',acs,{cs},{ss});
 
             %Weights
-            w = odfdrex.*numgrains;
+            w = odftex.*numgrains;
 
             odf = calcDensity(ori,'weights',w,'halfwidth',10/180*pi);
 
@@ -169,7 +169,7 @@ for stp_strain = 1:strainnum
             ss = specimenSymmetry('mmm');%'mmm',[4.7646,10.2296,5.9942],'x||a','z||c','mineral','Olivine');
 
             acs = h5read(filename,'/acs_ens');
-            odfdrex = h5read(filename,'/odf_ens');
+            odftxex = h5read(filename,'/odf_ens');
 
             acs=permute(acs,[3,2,1]);
             numgrains=size(acs,3);
@@ -178,7 +178,7 @@ for stp_strain = 1:strainnum
             ori   = orientation('matrix',acs,{cs},{ss});
 
             %Weights
-            w = odfdrex.*numgrains;
+            w = odftex.*numgrains;
 
             odf = calcDensity(ori,'weights',w,'halfwidth',10/180*pi);
 

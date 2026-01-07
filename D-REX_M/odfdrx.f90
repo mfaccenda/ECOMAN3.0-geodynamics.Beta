@@ -154,7 +154,9 @@
    ELSE
 
 !Weight the odf to get sum = 1
-      CALL SCALE_ODF(f,f_nodrx,fnew)
+      if(odfmode==1) CALL SCALE_ODF(f,f_nodrx,fnew)
+!Keep original ODF for plotting
+      if(odfmode==2) fnew = f
 
 ! the subroutine EULERIAN_TRANSFORM is particularly fast if 
 ! the only active olivine slip system is s_ol = 1, because this slip
