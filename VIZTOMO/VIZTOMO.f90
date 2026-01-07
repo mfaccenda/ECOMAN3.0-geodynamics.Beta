@@ -2,7 +2,7 @@
  !! ---------------------------------------------------------------------------
  !! ---------------------------------------------------------------------------
  !!
- !!    Copyright (c) 2018-2023, Universita' di Padova, Manuele Faccenda
+ !!    Copyright (c) 2018-2026, Universita' di Padova, Manuele Faccenda
  !!    All rights reserved.
  !!
  !!    This software package was developed at:
@@ -496,9 +496,6 @@ END SUBROUTINE read_infos
       ELSE
 !!! natural strain = ln(a/c) where a is the long axis = maxval(evals)**0.5
           ln_fse(m) = LOG(amax(m)/amin(m))
-!if(ln_fse(m)<ln_fse_min .AND. mx2(m)>6350e3 .AND. mx3(m) > 1.4) THEN
-!write(*,'(i10,i3,4f14.4)') m,rocktype(m),mx1(m),mx2(m),mx3(m),ln_fse(m)
-!end if
 
       END IF
 
@@ -508,8 +505,6 @@ END SUBROUTINE read_infos
 
 !$omp end do
 !$omp end parallel
-
-!stop
 
    END SUBROUTINE fsecalc   
 

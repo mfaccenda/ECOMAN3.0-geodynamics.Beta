@@ -616,11 +616,11 @@
 
    !Save initial setup
    DO m=1,marknum
-       mx123(m,1,1) = REAL(mx1(m),4)
-       mx123(m,1,2) = REAL(mx2(m),4)
-       mx123(m,1,3) = REAL(mx3(m),4)
-       mrtYY(m,1,1) = INT(rocktype(m),1)
-       mrtYY(m,1,2) = INT(mYY(m),1)
+       mx123(m,ncycmax,1) = REAL(mx1(m),4)
+       mx123(m,ncycmax,2) = REAL(mx2(m),4)
+       mx123(m,ncycmax,3) = REAL(mx3(m),4)
+       mrtYY(m,ncycmax,1) = INT(rocktype(m),1)
+       mrtYY(m,ncycmax,2) = INT(mYY(m),1)
    END DO
 
    if ( rankMPI .eq. 1 ) then
@@ -702,8 +702,8 @@
 
    CALL loadsave_integer(0,1,file_id,1,H5T_NATIVE_INTEGER,texmod0,'texmod',0)
 
-   IF(texmod == 0 .AND. texmod0 == 1) THEN
-      print *,'Fossil fabric for DREX aggregates computed with SBFTEX in D-REX_S'
+   IF(texmod .NE. texmod0) THEN
+      print *,'Fossil fabric for DREX aggregates computed with ODFTEX in D-REX_S'
       STOP
    END IF
  

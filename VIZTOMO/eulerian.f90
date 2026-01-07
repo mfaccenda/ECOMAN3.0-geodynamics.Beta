@@ -2,7 +2,7 @@
  !! ---------------------------------------------------------------------------
  !! ---------------------------------------------------------------------------
  !!
- !!    Copyright (c) 2018-2023, Universita' di Padova, Manuele Faccenda
+ !!    Copyright (c) 2018-2026, Universita' di Padova, Manuele Faccenda
  !!    All rights reserved.
  !!
  !!    This software package was developed at:
@@ -55,7 +55,6 @@ IMPLICIT NONE
 
 INTEGER :: i,j,k,i1,i2,i3,m,m1,gi,giref,gijk,ijk,x,y,z,t,zn,yyy
 INTEGER :: yc,zc,dum_int(3),azinum,flag
-DOUBLE PRECISION, DIMENSION(21) :: XE
 DOUBLE PRECISION, DIMENSION (3) :: n1,n2,n3,phi_a   
 DOUBLE PRECISION, DIMENSION (3,3) :: acs
 DOUBLE PRECISION, DIMENSION (3,3,3,3) :: cijkl
@@ -356,10 +355,7 @@ DO i2=1,nx21
 
    PwaveMod = 0d0; SwaveMod = 0d0
    !Set isotropic elastic tensor
-   XE = 0d0
-   call V21D(Savref(:,:,i2),XE)
-   PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
-   SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2
+   CALL PSwavemod(Savref(:,:,i2),Pwavemod,Swavemod)
    Vpref(i2) = sqrt(PwaveMod*1.0d9/Rhoref(i2))
    Vsref(i2) = sqrt(SwaveMod*1.0d9/Rhoref(i2))
 
@@ -368,7 +364,7 @@ END DO
 !Fill empty nodes
 !$omp parallel & 
 !$omp shared(Savn,Rhon,Savref,Rhoref) &
-!$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod,XE) &    
+!$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod) &    
 !$omp firstprivate(x,y,z,nx11,nx21,nx31)
 !$omp do schedule(guided,8)
 DO yyy=1,yinyang
@@ -381,14 +377,10 @@ DO i1=1,nx11
    IF(Rhon(gi) == 0) THEN     
 
       Rhon(gi) = Rhoref(i2)
-      Savn(:,:,gi) = Savref(:,:,i2)
 
-      PwaveMod = 0d0; SwaveMod = 0d0
       !Set isotropic elastic tensor
-      XE = 0d0
-      call V21D(Savn(:,:,gi),XE)
-      PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
-      SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2
+      PwaveMod = Vpref(i2)**2.0*Rhoref(i2)
+      SwaveMod = Vsref(i2)**2.0*Rhoref(i2)
       Savn(:,:,gi) = 0d0
       Savn(1,1,gi) = PwaveMod; Savn(2,2,gi) = Savn(1,1,gi) ; Savn(3,3,gi) = Savn(1,1,gi)  
       Savn(1,2,gi) = PwaveMod - 2*SwaveMod ; Savn(2,1,gi) = Savn(1,2,gi)   
@@ -599,7 +591,7 @@ IF(vpvsmod > 0 ) THEN
    
    !$omp parallel & 
    !$omp shared(Savn,Rhon,fsen,Vp,Vs,X1,X3) &
-   !$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod,XE) &    
+   !$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod) &    
    !$omp firstprivate(vpvsmod,pi,ln_fse_min,x,y,z,nx11,nx21,nx31)
    !$omp do schedule(guided,8)
    DO yyy=1,yinyang
@@ -623,10 +615,7 @@ IF(vpvsmod > 0 ) THEN
             PwaveMod = 0d0; SwaveMod = 0d0 
             !Isotropic Vp,Vs, useful to see only thermal anomalies
             !Calculate isotropic Vp and Vs by finding isotropic part of the elastic tensor
-            XE = 0d0 
-            call V21D(Savn(:,:,gi),XE)
-            PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
-            SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2d0
+            CALL PSwavemod(Savn(:,:,gi),Pwavemod,Swavemod)
      
          END IF
      
@@ -643,7 +632,7 @@ IF(vpvsmod > 0 ) THEN
    IF(dvpvsmod > 0) THEN
 
    !Find the average Vp and Vs velocities at each depth
-   !ALLOCATE(Vpref(nx21),Vsref(nx21))
+   !This is needed again if vpvsmod = 2 and Vp,Vs are not isotropic
 
    DO i2=1,nx21
       Vpref(i2)=0d0
@@ -724,7 +713,7 @@ IF(zoeppritzmod .NE. 0) THEN
    
    !$omp parallel & 
    !$omp shared(Savn,Rhon,fsen,Rpp,Rps,Tpp,Tps,ERpp,ERps,ETpp,ETps) &
-   !$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod,XE,ro1,ro2,Vp01,Vp02,Vs01,Vs02,Pcritangle,p,k1,k2,j1,j2,a,b,c,d,E1,F,G1,H,D1) &    
+   !$omp private(yyy,i1,i2,i3,gi,PwaveMod,SwaveMod,ro1,ro2,Vp01,Vp02,Vs01,Vs02,Pcritangle,p,k1,k2,j1,j2,a,b,c,d,E1,F,G1,H,D1) &    
    !$omp firstprivate(zoeppritzmod,ln_fse_min,x,y,z,nx11,nx21,nx31,Incangle)
    !$omp do schedule(guided,8)
    DO yyy=1,yinyang
@@ -747,10 +736,7 @@ IF(zoeppritzmod .NE. 0) THEN
                CALL SLOWNESS(gi-y,PwaveMod,SwaveMod)
             end if
             if(zoeppritzmod == 1 .OR. fsen(gi) < ln_fse_min) then
-               XE = 0d0
-               call V21D(Savn(:,:,gi-y),XE)
-               PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
-               SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2
+               CALL PSwavemod(Savn(:,:,gi-y),Pwavemod,Swavemod)
             end if
 
             Vp01 = (PwaveMod*1e+9/Rhon(gi-y))**0.5d0
@@ -762,10 +748,7 @@ IF(zoeppritzmod .NE. 0) THEN
                CALL SLOWNESS(gi,PwaveMod,SwaveMod)
             end if
             if(zoeppritzmod == 1 .OR. fsen(gi) < ln_fse_min) then
-               XE = 0d0
-               call V21D(Savn(:,:,gi),XE)
-               PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
-               SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2d0
+               CALL PSwavemod(Savn(:,:,gi),Pwavemod,Swavemod)
             end if
 
             Vp02 = (PwaveMod*1e+9/Rhon(gi))**0.5d0
@@ -2356,3 +2339,30 @@ SwaveMod = evals(2)
 RETURN
 
 END SUBROUTINE SLOWNESS
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+SUBROUTINE PSwavemod(C0,Pwavemod,Swavemod)
+   
+USE comvar
+
+IMPLICIT NONE
+  
+DOUBLE PRECISION, DIMENSION(6,6), intent(in)  :: C0                    
+DOUBLE PRECISION,                 intent(out) :: PwaveMod,SwaveMod
+DOUBLE PRECISION, DIMENSION(21)               :: XE              
+
+XE = 0d0
+CALL V21D(C0,XE)
+
+PwaveMod = 3D0/15D0*(XE(1)+XE(2)+XE(3))+sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+2D0/15D0*(XE(7)+XE(8)+XE(9))
+SwaveMod = (2D0/15D0*(XE(1)+XE(2)+XE(3))-sqrt(2D0)/15D0*(XE(4)+XE(5)+XE(6))+1D0/5D0*(XE(7)+XE(8)+XE(9)))/2
+
+RETURN
+
+END SUBROUTINE PSwavemod
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+

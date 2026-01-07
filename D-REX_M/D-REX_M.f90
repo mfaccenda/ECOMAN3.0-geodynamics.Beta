@@ -116,12 +116,11 @@
    CALL load(2,t,input_dir)
 
 !!! Assign rocktype at first cycle 
-   IF(1==1 .AND. ncyc == 0) THEN
+   IF(1==0 .AND. ncyc == 0) THEN
 
       DO m = 1, marknum
 
          IF(rocktype(m) < 10) CALL rocktypecheck(m)
-         !rocktype(m) = INT(mrtYY(m,ncycmax,1))
       
       END DO
 
@@ -174,10 +173,10 @@
    END IF
 
    ! 2D model forward advection + LPO
-   IF(dimensions == 2) CALL forwardLPOadvection2D(ncycmax-ncyc+1)
+   IF(dimensions == 2) CALL forwardLPOadvection2D(ncyc)
 
    ! 3D model forward advection + LPO
-   IF(dimensions == 3) CALL forwardLPOadvection3D(ncycmax-ncyc+1)
+   IF(dimensions == 3) CALL forwardLPOadvection3D(ncyc)
 
    ! Print cycle
    if ( rankMPI .eq. 1 ) then
@@ -204,17 +203,17 @@
 !!! Output: compute elastic tensor and save infos into hdf5 format
    IF( (Tinit == Tend .AND. ncyc2 == OutputStep) .OR. (Tinit .NE. Tend .AND. (nfile == OutputStep .OR. t == Tend)) .OR. timesum == timemax) THEN
 
-!!! Enforce initial position for the last timestep
-      IF(1==1 .AND. ncyc == ncycmax-1) THEN
+!!! Enforce initial position for the last LPO calcualtion cycle: ncyctot = (ncycmax-1) 
+      IF(0==1 .AND. ncyc == ncycmax-1) THEN
 
          if ( rankMPI .eq. 1 ) print *,'ncyc = ',ncyc
          if ( rankMPI .eq. 1 ) print *,'ncycmax = ',ncycmax
 
-         mx1(:) = dble(mx123(:,1,1))
-         mx2(:) = dble(mx123(:,1,2))
-         mx3(:) = dble(mx123(:,1,3))
-         rocktype(:) = INT(mrtYY(:,1,1))
-         mYY(:) = INT(mrtYY(:,1,2))
+         mx1(:) = dble(mx123(:,ncycmax,1))
+         mx2(:) = dble(mx123(:,ncycmax,2))
+         mx3(:) = dble(mx123(:,ncycmax,3))
+         rocktype(:) = INT(mrtYY(:,ncycmax,1))
+         mYY(:) = INT(mrtYY(:,ncycmax,2))
 
       END IF
 
@@ -362,7 +361,7 @@
    !M3E!!!!!!!!!!!!
 
    CHARACTER (500) :: input_dir
-   INTEGER :: m,ncyc,ncyc1,t,ndt !! loop counters
+   INTEGER :: m,ncyc,ncyc1,ncyc2,t,ndt !! loop counters
    INTEGER :: tid,i1,i2,i3,numstrainmax,numstrainmax_sum
    DOUBLE PRECISION :: wtime0,wtime1,wtime2,timeback,fractdisl
    !M3E!!!!!!!!!!!!!!!!!!!!!
@@ -375,7 +374,7 @@
    rankMPI = rankMPI + 1
    !M3E!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-   ncyc = 1 ; ncyc1 = 0
+   ncyc = ncycmax ; ncyc1 = 0 ; ncyc2 = 0
    call MPI_Barrier(MPI_COMM_WORLD,errMPI)
    wtime0 = MPI_Wtime()
    timeback = 0d0
@@ -416,19 +415,23 @@
 
    ndt = 0
 
-15 ncyc  = ncyc  + 1 !Update number of cycles since the start of the backward run                       
+15 ncyc  = ncyc  - 1 !Update number of cycles since the start of the backward run, reversed             
    ncyc1 = ncyc1 + 1 !Update number of cycles since the start of this input file                        
+   ncyc2 = ncyc2 + 1 !Update number of cycles since the start of the backward run                       
 
    ndt = ndt + 1
    timeback = timeback - dt
 
+   if ( rankMPI .eq. 1 ) then
+      if(ncyc < 1) then      
+         write(*,'(a,i0,a)') ' ncyc = ',ncyc,' < 1'                   
+         stop
+      end if
+   end if
+
 !!! Steady-state flow (works when Tinit = Tend and timemax > 0 in input.dat)
    IF(Tinit == Tend .AND. timesum < timeback) THEN
       if ( rankMPI .eq. 1 ) then
-         if(ncyc > ncycmax) then
-            write(*,'(a,i0,a,i0)') ' ncyc = ',ncyc,' > ncycmax = ',ncycmax
-            stop
-         end if
          write(*,'(a,i0,a)') ' Start cycle ',ncyc-1,', steady-state flow'
          write(*,*)
          write(*,'(a,1es13.6,a,1es13.6,a,1es13.6)') '    Starting time = ',timesum,          &
@@ -440,10 +443,6 @@
       if ( rankMPI .eq. 1 ) then
          write(*,'(a,i0)') ' Start cycle ',ncyc1
          write(*,*)
-         if(ncyc > ncycmax) then
-            write(*,'(a,i0,a,i0)') ' ncyc = ',ncyc,' > ncycmax = ',ncycmax
-            stop
-         end if
          write(*,'(a,1es13.6,a,1es13.6)') '    Timestep = ',dt,' Timesum = ',timeback
          write(*,*)
       endif
@@ -460,6 +459,34 @@
 
    ! 2D model
    IF(dimensions == 2) THEN
+
+!!! Advection of tracers
+   !$omp parallel do &
+   !$omp schedule(dynamic) &
+   !$omp shared(mx1,mx2,mx123,mrtYY,mYY,X1,X2,Ui,Tk,Pa,Fij,odf,odf_ens,acs0,acs,acs_ens,rocktype,rho,td_rho,max_strain) &
+   !$omp private(m) &
+   !$omp firstprivate(marknum,dt,size,size3,fabrictransformmod,ptmod,cartspher,Xol,minx2,maxx2,strainmax,ncyc) &
+   !$omp firstprivate(nx1,nx2,x1min,x2min,x1max,x2max,x1periodic,x2periodic)
+   DO m = 1 , marknum
+ 
+      IF(rocktype(m) < 100) THEN
+
+!!! Advection of tracers
+
+         CALL advection2D(m)
+
+!!! Aggregate transformation
+
+         IF(fabrictransformmod > 0 .AND. rocktype(m)<10) CALL rocktypecheck(m)
+ 
+         mx123(m,ncyc,1) = REAL(mx1(m),4)
+         mx123(m,ncyc,2) = REAL(mx2(m),4)
+         mrtYY(m,ncyc,1) = INT(rocktype(m),1)
+
+      END IF
+
+   END DO
+   !$omp end parallel do
 
    !$omp parallel do & 
    !$omp schedule(dynamic) &
@@ -498,48 +525,48 @@
          max_strain(m) = max_strain(m) - dt*epsnot(tid)*fractdisl
          IF(max_strain(m) >= strainmax) THEN
             rocktype(m) = rocktype(m) + 100
-            mx123(m,ncyc:ncycmax,1) = REAL(mx1(m),4)
-            mx123(m,ncyc:ncycmax,2) = REAL(mx2(m),4)
-            mrtYY(m,ncyc:ncycmax,1) = INT(rocktype(m),1)
+            mx123(m,1:ncyc,1) = REAL(mx1(m),4)
+            mx123(m,1:ncyc,2) = REAL(mx2(m),4)
+            mrtYY(m,1:ncyc,1) = INT(rocktype(m),1)
          END IF
 
 50    END IF
-
-      IF(rocktype(m) > 100) mrtYY(m,ncyc,1) = INT(rocktype(m),1)
-
-   END DO
-   !$omp end parallel do
-
-!!! Advection of tracers
-   !$omp parallel do &
-   !$omp schedule(dynamic) &
-   !$omp shared(mx1,mx2,mx123,mrtYY,mYY,X1,X2,Ui,Tk,Pa,Fij,odf,odf_ens,acs0,acs,acs_ens,rocktype,rho,td_rho,max_strain) &
-   !$omp private(m) &
-   !$omp firstprivate(marknum,dt,size,size3,fabrictransformmod,ptmod,cartspher,Xol,minx2,maxx2,strainmax,ncyc) &
-   !$omp firstprivate(nx1,nx2,x1min,x2min,x1max,x2max,x1periodic,x2periodic)
-   DO m = 1 , marknum
- 
-      IF(rocktype(m) < 100) THEN
-
-!!! Advection of tracers
-
-         CALL advection2D(m)
-
-!!! Aggregate transformation
-
-         IF(fabrictransformmod > 0 .AND. rocktype(m)<10) CALL rocktypecheck(m)
- 
-         mx123(m,ncyc,1) = REAL(mx1(m),4)
-         mx123(m,ncyc,2) = REAL(mx2(m),4)
-         mrtYY(m,ncyc,1) = INT(rocktype(m),1)
-
-      END IF
 
    END DO
    !$omp end parallel do
 
    ! 3D model
    ELSE
+
+!!! Advection of tracers
+   !$omp parallel do & 
+   !$omp schedule(dynamic) &
+   !$omp shared(mx1,mx2,mx3,mx123,mrtYY,mYY,X1,X2,X3,Ui,Tk,Pa,Fij,odf,odf_ens,acs0,acs,acs_ens,rocktype,rho,td_rho,max_strain) &
+   !$omp private(m) &    
+   !$omp firstprivate(marknum,dt,size,size3,fabrictransformmod,ptmod,cartspher,Xol,minx2,maxx2,strainmax,ncyc) &
+   !$omp firstprivate(nx1,nx2,nx3,x1min,x2min,x3min,x1max,x2max,x3max,x1periodic,x2periodic,x3periodic)
+   DO m = 1 , marknum
+ 
+      IF(rocktype(m) < 100) THEN
+
+!!! Advection of tracers
+
+         CALL advection(m)
+
+!!! Aggregate transformation
+      
+         IF(fabrictransformmod > 0 .AND. rocktype(m)<10) CALL rocktypecheck(m)
+ 
+         mx123(m,ncyc,1) = REAL(mx1(m),4)
+         mx123(m,ncyc,2) = REAL(mx2(m),4)
+         mx123(m,ncyc,3) = REAL(mx3(m),4)
+         mrtYY(m,ncyc,1) = INT(rocktype(m),1)
+         mrtYY(m,ncyc,2) = INT(mYY(m),1)
+
+      END IF
+
+   END DO
+   !$omp end parallel do
 
    !$omp parallel do & 
    !$omp schedule(dynamic) &
@@ -580,43 +607,14 @@
 !!! Deactivate aggregate that has cumulated enough deformation
          IF(max_strain(m) >= strainmax) THEN
             rocktype(m) = rocktype(m) + 100
-            mx123(m,ncyc:ncycmax,1) = REAL(mx1(m),4)
-            mx123(m,ncyc:ncycmax,2) = REAL(mx2(m),4)
-            mx123(m,ncyc:ncycmax,3) = REAL(mx3(m),4)
-            mrtYY(m,ncyc:ncycmax,1) = INT(rocktype(m),1)
-            mrtYY(m,ncyc:ncycmax,2) = INT(mYY(m),1)
+            mx123(m,1:ncyc,1) = REAL(mx1(m),4)
+            mx123(m,1:ncyc,2) = REAL(mx2(m),4)
+            mx123(m,1:ncyc,3) = REAL(mx3(m),4)
+            mrtYY(m,1:ncyc,1) = INT(rocktype(m),1)
+            mrtYY(m,1:ncyc,2) = INT(mYY(m),1)
          END IF
 
 60    END IF
-
-   END DO
-   !$omp end parallel do
-
-!!! Advection of tracers
-   !$omp parallel do & 
-   !$omp schedule(dynamic) &
-   !$omp shared(mx1,mx2,mx3,mx123,mrtYY,mYY,X1,X2,X3,Ui,Tk,Pa,Fij,odf,odf_ens,acs0,acs,acs_ens,rocktype,rho,td_rho,max_strain) &
-   !$omp private(m) &    
-   !$omp firstprivate(marknum,dt,size,size3,fabrictransformmod,ptmod,cartspher,Xol,minx2,maxx2,strainmax,ncyc) &
-   !$omp firstprivate(nx1,nx2,nx3,x1min,x2min,x3min,x1max,x2max,x3max,x1periodic,x2periodic,x3periodic)
-   DO m = 1 , marknum
- 
-      IF(rocktype(m) < 100) THEN
-!!! Advection of tracers
-
-         CALL advection(m)
-
-!!! Aggregate transformation
-      
-         IF(fabrictransformmod > 0 .AND. rocktype(m)<10) CALL rocktypecheck(m)
- 
-         mx123(m,ncyc,1) = REAL(mx1(m),4)
-         mx123(m,ncyc,2) = REAL(mx2(m),4)
-         mx123(m,ncyc,3) = REAL(mx3(m),4)
-         mrtYY(m,ncyc,1) = INT(rocktype(m),1)
-         mrtYY(m,ncyc,2) = INT(mYY(m),1)
-
-      END IF
 
    END DO
    !$omp end parallel do
@@ -669,19 +667,21 @@
 90 wtime1 = MPI_Wtime() - wtime0
    call MPI_Barrier(MPI_COMM_WORLD,errMPI)
    if (rankMPI .eq. 1 ) then
+      if(ncyc2 .NE. ncycmax-1) then
+         write(*,'(a,i0,a,i0)') ' ncyc2 = ',ncyc2,' different from ncycmax - 1 =',ncycmax -1                   
+         stop
+      end if
+         
       write(*,"(a)") '--------------------------------------------------------'
       write(*,*)
       write(*,'(a,1f10.2,a)') ' BACKWARD ADVECTION OK! (',wtime1,' sec)'
       write(*,*)
-      write(*,'(a,i0)') ' TOTAL NUMBER OF CYCLES: ',ncyc-1
+      write(*,'(a,i0)') ' TOTAL NUMBER OF CYCLES: ',ncyc2     
       write(*,*)
       write(*,"(a)") '********************************************************'
       write(*,"(a)") '********************************************************'
       write(*,*)
    endif
-
-!!! Remove first cycle about the initial setup
-   ncyctot = ncyc - 1
 
    RETURN
 
@@ -726,13 +726,6 @@
    !$omp firstprivate(fsemod,fabrictransformmod,fractdislmod,uppermantlemod,x1min,x2min,x1max,x2max,nx1,nx2)
    DO m = 1 , marknum
  
-      mx1(m) = dble(mx123(m,ncyc,1))
-      mx2(m) = dble(mx123(m,ncyc,2))
-      IF(mrtYY(m,ncyc,1) > 10 ) rocktype(m) = INT(mrtYY(m,ncyc,1)) !do not reset fabric for external particles
-      rocktype_old = rocktype(m)
-      rocktype(m) = INT(mrtYY(m,ncyc,1))
-      IF(fabrictransformmod == 2 .AND. rocktype(m) .NE. rocktype_old) CALL resetfabric(m)
-
 !!! Compute LPO/FSE only for aggregates in the domain .OR. for upper mantle aggregates only
 
       IF((uppermantlemod == 0 .AND. rocktype(m) < 10) .OR. (uppermantlemod > 0 .AND. rocktype(m) == 1)) THEN
@@ -762,6 +755,13 @@
          CALL strain(tid,m,fractdisl)
 
 50    END IF
+
+      !New position for next timestep
+      mx1(m) = dble(mx123(m,ncyc+1,1))
+      mx2(m) = dble(mx123(m,ncyc+1,2))
+      rocktype(m) = INT(mrtYY(m,ncyc+1,1))
+      !Reset fabric
+      IF(fabrictransformmod == 2 .AND. mrtYY(m,ncyc,1) .NE. mrtYY(m,ncyc+1,1)) CALL resetfabric(m)
 
    END DO
    !$omp end parallel do
@@ -817,15 +817,6 @@
    !$omp firstprivate(fsemod,fabrictransformmod,fractdislmod,uppermantlemod,x1min,x2min,x3min,x1max,x2max,x3max,nx1,nx2,nx3)
    DO m = 1 , marknum
 
-      mx1(m) = dble(mx123(m,ncyc,1))
-      mx2(m) = dble(mx123(m,ncyc,2))
-      mx3(m) = dble(mx123(m,ncyc,3))
-      mYY(m) = INT(mrtYY(m,ncyc,2))
-      IF(mrtYY(m,ncyc,1) > 10 ) rocktype(m) = INT(mrtYY(m,ncyc,1)) !do not reset fabric for external particles
-      rocktype_old = rocktype(m)
-      rocktype(m) = INT(mrtYY(m,ncyc,1))
-      IF(fabrictransformmod == 2 .AND. rocktype(m) .NE. rocktype_old) CALL resetfabric(m)
-
 !!! Compute LPO/FSE only for aggregates in the domain .OR. for upper mantle aggregates only
 
       IF((uppermantlemod == 0 .AND. rocktype(m) < 10) .OR. (uppermantlemod > 0 .AND. rocktype(m) == 1)) THEN
@@ -855,6 +846,15 @@
          CALL strain(tid,m,fractdisl)
 
 50    END IF
+
+      !New position for next timestep
+      mx1(m) = dble(mx123(m,ncyc+1,1))
+      mx2(m) = dble(mx123(m,ncyc+1,2))
+      mx3(m) = dble(mx123(m,ncyc+1,3))
+      mYY(m) = INT(mrtYY(m,ncyc+1,2))
+      rocktype(m) = INT(mrtYY(m,ncyc+1,1))
+      !Reset fabric
+      IF(fabrictransformmod == 2 .AND. mrtYY(m,ncyc,1) .NE. mrtYY(m,ncyc+1,1)) CALL resetfabric(m)
 
    END DO
    !$omp end parallel do

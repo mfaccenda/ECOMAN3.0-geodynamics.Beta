@@ -2,7 +2,7 @@
  !! ---------------------------------------------------------------------------
  !! ---------------------------------------------------------------------------
  !!
- !!    Copyright (c) 2018-2023, Universita' di Padova, Manuele Faccenda
+ !!    Copyright (c) 2018-2026, Universita' di Padova, Manuele Faccenda
  !!    All rights reserved.
  !!
  !!    This software package was developed at:
@@ -131,7 +131,6 @@
       nsave = nsave + 1
 
 !!! Cijkl tensor (using Voigt average)
-      !CALL stifftenz(1)
       fractvoigt = fractvoigt0 ; CALL tensorscalc(1,mtk0,mpgpa0,Mixed)
       fractvoigt = 1d0 ; CALL tensorscalc(1,mtk0,mpgpa0,Voigt)
       fractvoigt = 0d0 ; CALL tensorscalc(1,mtk0,mpgpa0,Reuss)
@@ -728,6 +727,7 @@
    rho(1) = 3353d0
   
    ALLOCATE(mdb(1))
+   mdb(m) = 1
 
    IF(ptmod > 0) THEN
 
